@@ -4,7 +4,7 @@ import {
   RiotGetMatchesIdsByPuuidResponse,
   RiotGetMatchByMatchIdResponse,
 } from '../riot-responses-types';
-import { AxiosService } from './axios.service';
+import { AxiosService } from '../http/axios.service';
 
 interface IGetSummoner {
   summonerName: string;
