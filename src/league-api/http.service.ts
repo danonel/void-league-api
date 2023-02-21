@@ -15,6 +15,7 @@ interface IGetMatchesIdsByPuuid {
   regionName: string;
   limit?: number;
   puuid: string;
+  queueId: number;
 }
 
 interface IGetMatchByMatchId {
@@ -28,7 +29,7 @@ export class HttpService {
   private readonly baseUrl = process.env.RIOT_BASE_URL;
 
   async getSummoner({ summonerName, regionName }: IGetSummoner) {
-    const url = `${regionName}.${this.baseUrl}/summoner/v4/summoners/by-name/${summonerName}`;
+    const url = `${regionName}.${this.baseUrl}/lol/summoner/v4/summoners/by-name/${summonerName}`;
     const response = await this.axiosService.get<RiotSummonerResponse>(url);
     return response;
   }
@@ -37,16 +38,18 @@ export class HttpService {
     puuid,
     regionName,
     limit,
+    queueId,
   }: IGetMatchesIdsByPuuid) {
     const continent = this.regionToContinent(regionName);
     const count = limit || 20;
-    const url = `${continent}.${this.baseUrl}/match/v5/matches/by-puuid/${puuid}/ids?count=${count}`;
+    const url = `${continent}.${this.baseUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?count=${count}&queue=${queueId}`;
+
     return await this.axiosService.get<RiotGetMatchesIdsByPuuidResponse>(url);
   }
 
   async getMatchByMatchId({ matchId, regionName }: IGetMatchByMatchId) {
     const continent = this.regionToContinent(regionName);
-    const url = `${continent}.${this.baseUrl}/match/v5/matches/${matchId}`;
+    const url = `${continent}.${this.baseUrl}/lol/match/v5/matches/${matchId}`;
     return await this.axiosService.get<RiotGetMatchByMatchIdResponse>(url);
   }
 
