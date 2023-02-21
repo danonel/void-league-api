@@ -35,6 +35,9 @@ export class MatchEntity {
   gameMode: string;
 
   @Column({ type: 'int' })
+  queueId: number;
+
+  @Column({ type: 'int' })
   gameDuration: number;
 
   @Column({ type: 'int' })

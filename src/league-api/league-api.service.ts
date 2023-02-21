@@ -32,6 +32,7 @@ export class LeagueApiService {
       puuid,
       regionName,
       limit,
+      queueId,
     });
     const matchesPromises = matchesIds.map(
       async (matchId) =>
@@ -42,6 +43,9 @@ export class LeagueApiService {
     for (const match of matches) {
       const normalizedMatch = this.repositoryNormalizer.matchNormalizer(
         match,
+        summonerName,
+        regionName,
+        queueId,
         puuid,
       );
       await this.matchRepository.upsert(normalizedMatch, {
@@ -60,19 +64,24 @@ export class LeagueApiService {
     summonerName,
     regionName,
   }: GetPlayerLeaderboardsDTO) {
-    const playersMatches = await this.matchRepository.find({
+    const rankedMatches = await this.matchRepository.find({
+      where: {
+        queueId: 420 || 400,
+      },
+    });
+    const allPlayersMatches = await this.matchRepository.find({
       where: {
         regionName,
       },
     });
-    if (!playersMatches.length) {
+    if (!allPlayersMatches.length) {
       throw new HttpException(
         'No matches found for this player',
         HttpStatus.NOT_FOUND,
       );
     }
     const playersScores = new Map<string, number[]>();
-    for (const playerMatch of playersMatches) {
+    for (const playerMatch of allPlayersMatches) {
       const player = playerMatch.summonerName;
       const scores = playersScores.get(player) || [];
       const matchIndex = scores.length;
