@@ -74,11 +74,17 @@ export class LeagueApiService {
         regionName,
       },
     });
-    if (!allPlayersMatches.length) {
+    const summonerIncluded = allPlayersMatches.find(
+      (players) => players.summonerName === summonerName,
+    );
+    if (!summonerIncluded) {
       throw new HttpException(
-        'No matches found for this player',
+        `Summoner ${summonerName} not found`,
         HttpStatus.NOT_FOUND,
       );
+    }
+    if (!allPlayersMatches.length) {
+      throw new HttpException(`No matches found`, HttpStatus.NOT_FOUND);
     }
     const playersScores = new Map<string, number[]>();
     for (const playerMatch of allPlayersMatches) {

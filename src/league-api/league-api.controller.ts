@@ -1,7 +1,19 @@
-import { Body, Controller, Get, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  ParseIntPipe,
+  Query,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { RiotAuthInterceptor } from '../interceptors/riot-auth.interceptor';
 import { GetPlayerLeaderboardsDTO } from './dto/get-player-leaderboards.dto';
-import { GetPlayerRecentMatchesDTO } from './dto/get-player-recent-matches.dto';
+import {
+  GetPlayerRecentMatchesBody,
+  GetPlayerRecentMatchesQuery,
+} from './dto/get-player-recent-matches.dto';
 import { LeagueApiService } from './league-api.service';
 
 @Controller('league-api')
@@ -9,10 +21,11 @@ export class LeagueApiController {
   constructor(private readonly leagueApiService: LeagueApiService) {}
 
   @UseInterceptors(RiotAuthInterceptor)
+  @UsePipes(new ValidationPipe({ transform: true }))
   @Get('/matches')
   getPlayerRecentMatches(
-    @Body() { summonerName, regionName }: GetPlayerRecentMatchesDTO,
-    @Query() { queueId, limit }: GetPlayerRecentMatchesDTO,
+    @Body() { summonerName, regionName }: GetPlayerRecentMatchesBody,
+    @Query() { queueId, limit }: GetPlayerRecentMatchesQuery,
   ) {
     return this.leagueApiService.getPlayerRecentMatches({
       limit,

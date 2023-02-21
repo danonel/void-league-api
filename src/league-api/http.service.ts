@@ -50,7 +50,11 @@ export class HttpService {
   async getMatchByMatchId({ matchId, regionName }: IGetMatchByMatchId) {
     const continent = this.regionToContinent(regionName);
     const url = `${continent}.${this.baseUrl}/lol/match/v5/matches/${matchId}`;
-    return await this.axiosService.get<RiotGetMatchByMatchIdResponse>(url);
+    const response = await this.axiosService.get<RiotGetMatchByMatchIdResponse>(
+      url,
+    );
+
+    return response;
   }
 
   private regionToContinent(regionName: string): string {
