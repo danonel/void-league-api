@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   NestInterceptor,
 } from '@nestjs/common';
+import axios from 'axios';
 import { Observable } from 'rxjs';
 
 @Injectable()
@@ -12,11 +13,7 @@ export class RiotAuthInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler<any>,
   ): Observable<any> | Promise<Observable<any>> {
-    const request = context.switchToHttp().getRequest();
-    const token = request.headers['X-Riot-Token'];
-    if (!token) {
-      request.headers['X-Riot-Token'] = process.env.RIOT_API_KEY;
-    }
+    axios.defaults.headers['X-Riot-Token'] = process.env.RIOT_API_KEY;
 
     return next.handle();
   }
