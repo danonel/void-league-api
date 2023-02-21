@@ -1,10 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from './http.service';
-import { RiotGetMatchByMatchIdResponse } from './riot-responses-types';
-import { GetPlayerRecentMatchesDTO } from './dto/get-player-recent-matches.dto';
-import { MatchEntity } from './entities/match.entity';
+import { GetPlayerRecentMatchesDTO, GetPlayerLeaderboardsDTO } from './dto';
+import { MatchEntity } from './entities';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';
 import { Serialzier } from './serializer';
 
@@ -18,6 +17,7 @@ export class LeagueApiService {
 
   @InjectRepository(MatchEntity)
   private readonly matchRepository: Repository<MatchEntity>;
+
   async getPlayerRecentMatches({
     summonerName,
     limit,
@@ -53,7 +53,43 @@ export class LeagueApiService {
       normalizedMatches,
       queueId,
     );
-
     return response;
+  }
+
+  async getPlayerLeaderboards({
+    summonerName,
+    regionName,
+  }: GetPlayerLeaderboardsDTO) {
+    const playersMatches = await this.matchRepository.find({
+      where: {
+        regionName,
+      },
+    });
+    if (!playersMatches.length) {
+      throw new HttpException(
+        'No matches found for this player',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const playersScores = new Map<string, number[]>();
+    for (const playerMatch of playersMatches) {
+      const player = playerMatch.summonerName;
+      const scores = playersScores.get(player) || [];
+      const matchIndex = scores.length;
+      scores[matchIndex] = playerMatch.win ? 1 : 0;
+      playersScores.set(player, scores);
+    }
+
+    const counts = new Map<string, number>();
+    for (const [player, scores] of playersScores) {
+      const winsCount = scores.reduce((count, val) => count + val, 0);
+      counts.set(player, winsCount);
+    }
+    const sortedCounts = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const rank = sortedCounts.findIndex(([key]) => key === summonerName);
+
+    return {
+      winRate: `${rank + 1}`,
+    };
   }
 }

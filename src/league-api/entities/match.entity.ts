@@ -14,6 +14,9 @@ export class MatchEntity {
   summonerName: string;
 
   @Column({ type: 'varchar' })
+  regionName: string;
+
+  @Column({ type: 'varchar' })
   champion: string;
 
   @Column({ type: 'boolean' })
