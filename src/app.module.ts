@@ -8,9 +8,9 @@ import { LeagueApiModule } from './league-api/league-api.module';
     LeagueApiModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_DATABASE,
+      username: 'postgres',
+      password: 'postgres',
+      database: 'postgres',
       entities: [MatchEntity],
       synchronize: true,
     }),
