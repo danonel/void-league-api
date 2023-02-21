@@ -25,8 +25,10 @@ interface IGetMatchByMatchId {
 @Injectable()
 export class HttpService {
   constructor(private readonly axiosService: AxiosService) {}
+  private readonly baseUrl = process.env.RIOT_BASE_URL;
+
   async getSummoner({ summonerName, regionName }: IGetSummoner) {
-    const url = ''; // @TODO: build url with summoner name and region name
+    const url = `${regionName}.${this.baseUrl}/summoner/v4/summoners/by-name/${summonerName}`;
     const response = await this.axiosService.get<RiotSummonerResponse>(url);
     return response;
   }
@@ -36,13 +38,30 @@ export class HttpService {
     regionName,
     limit,
   }: IGetMatchesIdsByPuuid) {
-    const url = ''; // @TODO: build url with puuid, regionName/continent and count if provided
-
+    const continent = this.regionToContinent(regionName);
+    const count = limit || 20;
+    const url = `${continent}.${this.baseUrl}/match/v5/matches/by-puuid/${puuid}/ids?count=${count}`;
     return await this.axiosService.get<RiotGetMatchesIdsByPuuidResponse>(url);
   }
 
   async getMatchByMatchId({ matchId, regionName }: IGetMatchByMatchId) {
-    const url = ''; // @TODO: build url with matchId and regionName;
+    const continent = this.regionToContinent(regionName);
+    const url = `${continent}.${this.baseUrl}/match/v5/matches/${matchId}`;
     return await this.axiosService.get<RiotGetMatchByMatchIdResponse>(url);
+  }
+
+  private regionToContinent(regionName: string): string {
+    const continentRegions = {
+      AMERICAS: ['BR1', 'LA1', 'LA2', 'NA1'],
+      EUROPE: ['EUN1, EUW1', 'RU'],
+      SEA: ['OC1'],
+      ASIA: ['TH1', 'TH2', 'TW2', 'VN2', 'KR1', 'JP1', 'PH2', 'SG2'],
+    };
+
+    for (const continent in continentRegions) {
+      if (continentRegions[continent].includes(regionName)) {
+        return continent;
+      }
+    }
   }
 }
