@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from './http.service';
-import { RiotGetMatchByMatchIdResponse } from '../riot-responses-types';
+import { RiotGetMatchByMatchIdResponse } from './riot-responses-types';
 import { GetPlayerRecentMatchesDTO } from './dto/get-player-recent-matches.dto';
 import { MatchEntity } from './entities/match.entity';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';

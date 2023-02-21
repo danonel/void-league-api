@@ -3,7 +3,7 @@ import {
   RiotSummonerResponse,
   RiotGetMatchesIdsByPuuidResponse,
   RiotGetMatchByMatchIdResponse,
-} from '../riot-responses-types';
+} from './riot-responses-types';
 import { AxiosService } from '../http/axios.service';
 
 interface IGetSummoner {
