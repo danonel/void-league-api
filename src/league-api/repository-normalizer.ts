@@ -1,37 +1,31 @@
 import { Injectable } from '@nestjs/common';
+import { Match, Summoner } from './entities';
 import { RiotGetMatchByMatchIdResponse } from './riot-responses-types';
-import { MatchEntity } from './entities/match.entity';
 
-export type NormalizedMatch = Omit<MatchEntity, 'id' | 'createdAt'> & {
+export type NormalizedMatch = Omit<Match, 'id' | 'createdAt'> & {
   queueId: number;
 };
 
+interface IMatchNormalizer {
+  match: RiotGetMatchByMatchIdResponse;
+  summoner: Summoner;
+}
 @Injectable()
 export class RepositoryNormalizer {
-  matchNormalizer(
-    match: RiotGetMatchByMatchIdResponse,
-    summonerName: string,
-    regionName: string,
-    queueId: number,
-    puuid: string,
-  ): NormalizedMatch {
+  matchNormalizer({ match, summoner }: IMatchNormalizer): NormalizedMatch {
     const currentSummoner = match.info.participants.find(
-      (participant) => participant.puuid === puuid,
+      (participant) => participant.summonerId === summoner.summonerId,
     );
-
     return {
-      assists: currentSummoner.assists,
+      kda: `${currentSummoner.kills}/${currentSummoner.deaths}/${currentSummoner.assists}`,
       champion: currentSummoner.championName,
-      deaths: currentSummoner.deaths,
       gameDuration: match.info.gameDuration,
       gameMode: match.info.gameMode,
-      kills: currentSummoner.kills,
       matchId: match.info.gameId,
-      regionName,
-      summonerName,
+      queueId: match.info.queueId,
+      summoner,
       totalMinionsKilled: currentSummoner.totalMinionsKilled,
       win: currentSummoner.win,
-      queueId,
     } satisfies NormalizedMatch;
   }
 }

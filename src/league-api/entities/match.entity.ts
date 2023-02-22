@@ -3,33 +3,20 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
 } from 'typeorm';
+import { Summoner } from './summoner.entity';
 
 @Entity()
-export class MatchEntity {
+export class Match {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column({ type: 'varchar' })
-  summonerName: string;
-
-  @Column({ type: 'varchar' })
-  regionName: string;
 
   @Column({ type: 'varchar' })
   champion: string;
 
   @Column({ type: 'boolean' })
   win: boolean;
-
-  @Column({ type: 'int' })
-  kills: number;
-
-  @Column({ type: 'int' })
-  assists: number;
-
-  @Column({ type: 'int' })
-  deaths: number;
 
   @Column({ type: 'varchar' })
   gameMode: string;
@@ -45,6 +32,12 @@ export class MatchEntity {
 
   @Column({ type: 'varchar', unique: true })
   matchId: string;
+
+  @Column({ type: 'varchar' })
+  kda: string;
+
+  @ManyToOne(() => Summoner, (summoner) => summoner.matches)
+  summoner: Summoner;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,11 +1,12 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from './http.service';
-import { GetPlayerRecentMatchesDTO, GetPlayerLeaderboardsDTO } from './dto';
-import { MatchEntity } from './entities';
+import { GetPlayerRecentMatchesDTO } from './dto';
+import { Match, Summoner } from './entities';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';
 import { Serialzier } from './serializer';
+import { parseKda, parseRankedStats, removeSummoner } from './utils';
 
 @Injectable()
 export class LeagueApiService {
@@ -15,8 +16,10 @@ export class LeagueApiService {
     private readonly serializer: Serialzier,
   ) {}
 
-  @InjectRepository(MatchEntity)
-  private readonly matchRepository: Repository<MatchEntity>;
+  @InjectRepository(Match)
+  private readonly matchRepository: Repository<Match>;
+  @InjectRepository(Summoner)
+  private readonly summonerRepository: Repository<Summoner>;
 
   async getPlayerRecentMatches({
     summonerName,
@@ -24,35 +27,62 @@ export class LeagueApiService {
     regionName,
     queueId,
   }: GetPlayerRecentMatchesDTO) {
-    const { puuid } = await this.httpService.getSummoner({
-      summonerName,
-      regionName,
+    const { matchesPromises, summonerId } =
+      await this.httpService.getMatchesPromises({
+        limit,
+        queueId,
+        regionName,
+        summonerName,
+      });
+
+    const summonerExists = await this.summonerRepository.exist({
+      where: {
+        summonerName,
+      },
     });
-    const matchesIds = await this.httpService.getMatchesIdsByPuuid({
-      puuid,
-      regionName,
-      limit,
-      queueId,
+    if (!summonerExists) {
+      await this.summonerRepository.save({
+        summonerId,
+        summonerName,
+      });
+    }
+    const summoner = await this.summonerRepository.findOne({
+      where: {
+        summonerId,
+      },
+      relations: ['matches'],
     });
-    const matchesPromises = matchesIds.map(
-      async (matchId) =>
-        await this.httpService.getMatchByMatchId({ matchId, regionName }),
-    );
+
     const matches = await Promise.all(matchesPromises);
     const normalizedMatches = [] as NormalizedMatch[];
     for (const match of matches) {
-      const normalizedMatch = this.repositoryNormalizer.matchNormalizer(
+      const normalizedMatch = this.repositoryNormalizer.matchNormalizer({
         match,
-        summonerName,
-        regionName,
-        queueId,
-        puuid,
-      );
+        summoner,
+      });
+
       await this.matchRepository.upsert(normalizedMatch, {
         conflictPaths: { matchId: true },
       });
       normalizedMatches.push(normalizedMatch);
     }
+
+    const summonerLeagueStats = await this.httpService.getLeagueBySummonerId(
+      summonerId,
+      regionName,
+    );
+    const kda = parseKda(normalizedMatches);
+    const rankedStats = parseRankedStats(summonerLeagueStats);
+    const matchesWithoutSummoner = removeSummoner(normalizedMatches);
+
+    await this.summonerRepository.save({
+      ...summoner,
+      kda: `${kda.k}/${kda.d}/${kda.a}`,
+      leaguePoints: rankedStats.lp,
+      tier: rankedStats.tier,
+      rank: rankedStats.rank,
+      matches: matchesWithoutSummoner,
+    });
     const response = this.serializer.serializeRecentMatchesResponse(
       normalizedMatches,
       queueId,
@@ -60,51 +90,62 @@ export class LeagueApiService {
     return response;
   }
 
-  async getPlayerLeaderboards({
-    summonerName,
-    regionName,
-  }: GetPlayerLeaderboardsDTO) {
-    const rankedMatches = await this.matchRepository.find({
-      where: {
-        queueId: 420 || 400,
-      },
-    });
-    const allPlayersMatches = await this.matchRepository.find({
-      where: {
-        regionName,
-      },
-    });
-    const summonerIncluded = allPlayersMatches.find(
-      (players) => players.summonerName === summonerName,
-    );
-    if (!summonerIncluded) {
-      throw new HttpException(
-        `Summoner ${summonerName} not found`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-    if (!allPlayersMatches.length) {
-      throw new HttpException(`No matches found`, HttpStatus.NOT_FOUND);
-    }
-    const playersScores = new Map<string, number[]>();
-    for (const playerMatch of allPlayersMatches) {
-      const player = playerMatch.summonerName;
-      const scores = playersScores.get(player) || [];
-      const matchIndex = scores.length;
-      scores[matchIndex] = playerMatch.win ? 1 : 0;
-      playersScores.set(player, scores);
-    }
+  // async getPlayerLeaderboards({
+  //   summonerName,
+  //   regionName,
+  // }: GetPlayerLeaderboardsDTO) {
+  //   const rankedMatches = await this.matchRepository.find({
+  //     where: {
+  //       queueId: 420 || 400,
+  //     },
+  //   });
+  //   /*
+  //   const rankedPromises = rankedMatches.map((match) => {
+  //     return this.httpService.getLeagueBySummonerId(
+  //       match.summonerId,
+  //       regionName,
+  //     );
+  //   });
 
-    const counts = new Map<string, number>();
-    for (const [player, scores] of playersScores) {
-      const winsCount = scores.reduce((count, val) => count + val, 0);
-      counts.set(player, winsCount);
-    }
-    const sortedCounts = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    const rank = sortedCounts.findIndex(([key]) => key === summonerName);
+  //   const result = await Promise.all(rankedPromises);
+  //   console.log(result); */
 
-    return {
-      winRate: `${rank + 1}`,
-    };
-  }
+  //   const allPlayersMatches = await this.matchRepository.find({
+  //     where: {
+  //       regionName,
+  //     },
+  //   });
+  //   const summonerIncluded = allPlayersMatches.find(
+  //     (players) => players.summonerName === summonerName,
+  //   );
+  //   if (!summonerIncluded) {
+  //     throw new HttpException(
+  //       `Summoner ${summonerName} not found`,
+  //       HttpStatus.NOT_FOUND,
+  //     );
+  //   }
+  //   if (!allPlayersMatches.length) {
+  //     throw new HttpException(`No matches found`, HttpStatus.NOT_FOUND);
+  //   }
+  //   const playersScores = new Map<string, number[]>();
+  //   for (const playerMatch of allPlayersMatches) {
+  //     const player = playerMatch.summonerName;
+  //     const scores = playersScores.get(player) || [];
+  //     const matchIndex = scores.length;
+  //     scores[matchIndex] = playerMatch.win ? 1 : 0;
+  //     playersScores.set(player, scores);
+  //   }
+
+  //   const counts = new Map<string, number>();
+  //   for (const [player, scores] of playersScores) {
+  //     const winsCount = scores.reduce((count, val) => count + val, 0);
+  //     counts.set(player, winsCount);
+  //   }
+  //   const sortedCounts = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  //   const rank = sortedCounts.findIndex(([key]) => key === summonerName);
+
+  //   return {
+  //     winRate: `${rank + 1}`,
+  //   };
+  // }
 }

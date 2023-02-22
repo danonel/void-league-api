@@ -3,12 +3,10 @@ export type RecentMatchesResponse = {
 };
 
 interface SerializedMatchResponse {
-  assists: number;
+  kda: string;
   champion: string;
-  deaths: number;
   gameDuration: number;
   gameMode: string;
-  kills: number;
   matchId: number;
   totalMinionsKilled: number;
   win: boolean;

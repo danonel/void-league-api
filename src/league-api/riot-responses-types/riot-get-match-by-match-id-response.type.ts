@@ -26,4 +26,5 @@ interface Participant {
   win: boolean;
   totalMinionsKilled: number;
   championName: string;
+  summonerId: string;
 }

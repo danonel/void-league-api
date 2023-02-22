@@ -5,6 +5,7 @@ import {
   RiotGetMatchByMatchIdResponse,
 } from './riot-responses-types';
 import { AxiosService } from '../http/axios.service';
+import { RiotSummonerLeagueResponse } from './riot-responses-types/riot-get-league-by-summoner-id-response.type';
 
 interface IGetSummoner {
   summonerName: string;
@@ -27,6 +28,24 @@ interface IGetMatchByMatchId {
 export class HttpService {
   constructor(private readonly axiosService: AxiosService) {}
   private readonly baseUrl = process.env.RIOT_BASE_URL;
+
+  async getMatchesPromises({ summonerName, regionName, limit, queueId }) {
+    const { puuid, id } = await this.getSummoner({
+      summonerName,
+      regionName,
+    });
+    const matchesIds = await this.getMatchesIdsByPuuid({
+      puuid,
+      regionName,
+      limit,
+      queueId,
+    });
+    const matchesPromises = matchesIds.map(
+      async (matchId) => await this.getMatchByMatchId({ matchId, regionName }),
+    );
+
+    return { matchesPromises, summonerId: id };
+  }
 
   async getSummoner({ summonerName, regionName }: IGetSummoner) {
     const url = `${regionName}.${this.baseUrl}/lol/summoner/v4/summoners/by-name/${summonerName}`;
@@ -53,8 +72,12 @@ export class HttpService {
     const response = await this.axiosService.get<RiotGetMatchByMatchIdResponse>(
       url,
     );
-
     return response;
+  }
+
+  async getLeagueBySummonerId(summonerId: string, regionName: string) {
+    const url = `${regionName}.${this.baseUrl}/lol/league/v4/entries/by-summoner/${summonerId}`;
+    return await this.axiosService.get<RiotSummonerLeagueResponse[]>(url);
   }
 
   private regionToContinent(regionName: string): string {

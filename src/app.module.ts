@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MatchEntity } from './league-api/entities/match.entity';
+import { Match, Summoner } from './league-api/entities';
 import { LeagueApiModule } from './league-api/league-api.module';
 
 @Module({
@@ -11,7 +11,7 @@ import { LeagueApiModule } from './league-api/league-api.module';
       username: 'postgres',
       password: 'postgres',
       database: 'postgres',
-      entities: [MatchEntity],
+      entities: [Match, Summoner],
       synchronize: true,
     }),
   ],

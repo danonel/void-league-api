@@ -10,12 +10,10 @@ export class Serialzier {
   ): RecentMatchesResponse {
     const response = {
       [queueId]: normalizedMatches.map((match) => ({
-        assists: match.assists,
+        kda: match.kda,
         champion: match.champion,
-        deaths: match.deaths,
         gameDuration: match.gameDuration,
         gameMode: match.gameMode,
-        kills: match.kills,
         matchId: Number(match.matchId),
         totalMinionsKilled: match.totalMinionsKilled,
         win: match.win,
