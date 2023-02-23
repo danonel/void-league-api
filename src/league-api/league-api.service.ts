@@ -7,6 +7,7 @@ import { Match, Summoner } from './entities';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';
 import { Serialzier } from './serializer';
 import { parseKda, parseRankedStats, removeSummoner } from './utils';
+import { rankValues, tierValues } from './utils/ranked-values';
 
 @Injectable()
 export class LeagueApiService {
@@ -107,10 +108,8 @@ export class LeagueApiService {
     if (!summoner) {
       throw new NotFoundException(`Summoner ${summonerName} not found`);
     }
-
     const missingRankedValues =
       !summoner.tier || !summoner.rank || !summoner.leaguePoints;
-
     const kdaPosition = this.rankByKda(summoners, summonerName);
     let leaguePointsPosition: number | undefined;
     if (!missingRankedValues) {
@@ -149,13 +148,10 @@ export class LeagueApiService {
       }
       winsCount.push({ summonerName: summoner.summonerName, wins: count });
     }
-
     winsCount.sort((a, b) => b.wins - a.wins);
-
     const winsPosition = winsCount.findIndex(
       (summoner) => summoner.summonerName === summonerName,
     );
-
     return winsPosition + 1;
   }
 
@@ -163,19 +159,15 @@ export class LeagueApiService {
     const summonersWithKda = summoners.map((summoner) => {
       const [kills, deaths, assists] = summoner.kda.split('/');
       const kdaRatio = (Number(kills) + Number(assists)) / Number(deaths);
-
       return {
         summonerName: summoner.summonerName,
         kdaRatio,
       };
     });
-    const sortedSummonerByKda = summonersWithKda.sort(
-      (a, b) => b.kdaRatio - a.kdaRatio,
-    );
-    const kdaPosition = sortedSummonerByKda.findIndex(
+    summonersWithKda.sort((a, b) => b.kdaRatio - a.kdaRatio);
+    const kdaPosition = summonersWithKda.findIndex(
       (summoner) => summoner.summonerName === summonerName,
     );
-
     return kdaPosition + 1;
   }
 
@@ -183,25 +175,6 @@ export class LeagueApiService {
     summoners: Summoner[],
     summonerName: string,
   ): number {
-    const rankValues = {
-      I: 4,
-      II: 3,
-      III: 2,
-      IV: 1,
-    };
-
-    const tierValues = {
-      CHALLENGER: 9,
-      GRANDMASTER: 8,
-      MASTER: 7,
-      DIAMOND: 6,
-      PLATINUM: 5,
-      GOLD: 4,
-      SILVER: 3,
-      BRONZE: 2,
-      IRON: 1,
-    };
-
     const sortedSummonerByLeaguePoints = summoners.sort((a, b) => {
       if (a.tier === b.tier) {
         if (a.rank === b.rank) {
@@ -211,11 +184,9 @@ export class LeagueApiService {
       }
       return tierValues[a.tier] - tierValues[b.tier];
     });
-
     const leaguePointsPosition = sortedSummonerByLeaguePoints.findIndex(
       (summoner) => summoner.summonerName === summonerName,
     );
-
     return leaguePointsPosition + 1;
   }
 }
