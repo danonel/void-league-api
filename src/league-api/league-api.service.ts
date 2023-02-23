@@ -141,7 +141,6 @@ export class LeagueApiService {
       summonerId,
       regionName,
     );
-    console.log(summonerStats);
     const summoner = await this.getSummonerOrCreate({
       regionName,
       summonerId,

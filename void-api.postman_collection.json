@@ -1,0 +1,94 @@
+{
+	"info": {
+		"_postman_id": "5f670df8-54c1-46f0-8349-e11849d476ca",
+		"name": "void-api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "get-player-recent-matches",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"query": {
+					"queueId": 420,
+					"limit": 20
+				},
+				"body": {
+					"summonerName": "TTV LegitKorea",
+					"regionName": "NA1"
+				}
+			},
+			"response": [
+				{
+					"420": [
+						{
+							"kda": "4/3/3",
+							"champion": "Ahri",
+							"gameDuration": 1240,
+							"gameMode": "CLASSIC",
+							"matchId": 4585218806,
+							"totalMinionsKilled": 160,
+							"win": false
+						},
+						{
+							"kda": "0/6/10",
+							"champion": "Ahri",
+							"gameDuration": 1704,
+							"gameMode": "CLASSIC",
+							"matchId": 4585201788,
+							"totalMinionsKilled": 176,
+							"win": false
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "leaderboards",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"summonerName": "TTV LegitKorea",
+					"regionName": "NA1"
+				}
+			},
+			"response": [
+				{
+					"kda": "TOP #1",
+					"leaguePoints": "TOP #1",
+					"winRatePos": "TOP #1"
+				}
+			]
+		},
+		{
+			"name": "get-player-summary",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"summonerName": "TTV LegitKorea",
+					"regionName": "NA1"
+				},
+				"query": {
+					"queueId": 420
+				}
+			},
+			"response": [
+				{
+					"queueId": "420",
+					"currentRank": {
+						"name": "MASTER - I",
+						"currentLeaguePoints": 216
+					},
+					"matchesStats": {
+						"avarageVisionScore": 31,
+						"csPerMinute": 0.0996,
+						"wins": 10
+					}
+				}
+			]
+		}
+	]
+}
