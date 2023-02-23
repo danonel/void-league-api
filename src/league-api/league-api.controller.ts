@@ -35,7 +35,7 @@ export class LeagueApiController {
     });
   }
 
-  /* @UseInterceptors(RiotAuthInterceptor)
+  @UseInterceptors(RiotAuthInterceptor)
   @Get('/leaderboards')
   getPlayerLeaderboards(
     @Body() { regionName, summonerName }: GetPlayerLeaderboardsDTO,
@@ -44,5 +44,5 @@ export class LeagueApiController {
       regionName,
       summonerName,
     });
-  } */
+  }
 }

@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from './http.service';
-import { GetPlayerRecentMatchesDTO } from './dto';
+import { GetPlayerLeaderboardsDTO, GetPlayerRecentMatchesDTO } from './dto';
 import { Match, Summoner } from './entities';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';
 import { Serialzier } from './serializer';
@@ -44,6 +44,7 @@ export class LeagueApiService {
       await this.summonerRepository.save({
         summonerId,
         summonerName,
+        regionName,
       });
     }
     const summoner = await this.summonerRepository.findOne({
@@ -90,62 +91,131 @@ export class LeagueApiService {
     return response;
   }
 
-  // async getPlayerLeaderboards({
-  //   summonerName,
-  //   regionName,
-  // }: GetPlayerLeaderboardsDTO) {
-  //   const rankedMatches = await this.matchRepository.find({
-  //     where: {
-  //       queueId: 420 || 400,
-  //     },
-  //   });
-  //   /*
-  //   const rankedPromises = rankedMatches.map((match) => {
-  //     return this.httpService.getLeagueBySummonerId(
-  //       match.summonerId,
-  //       regionName,
-  //     );
-  //   });
+  async getPlayerLeaderboards({
+    summonerName,
+    regionName,
+  }: GetPlayerLeaderboardsDTO) {
+    const summoners = await this.summonerRepository.find({
+      where: {
+        regionName,
+      },
+      relations: ['matches'],
+    });
+    const summoner = summoners.find(
+      (summoner) => summoner.summonerName === summonerName,
+    );
+    if (!summoner) {
+      throw new NotFoundException(`Summoner ${summonerName} not found`);
+    }
 
-  //   const result = await Promise.all(rankedPromises);
-  //   console.log(result); */
+    const missingRankedValues =
+      !summoner.tier || !summoner.rank || !summoner.leaguePoints;
 
-  //   const allPlayersMatches = await this.matchRepository.find({
-  //     where: {
-  //       regionName,
-  //     },
-  //   });
-  //   const summonerIncluded = allPlayersMatches.find(
-  //     (players) => players.summonerName === summonerName,
-  //   );
-  //   if (!summonerIncluded) {
-  //     throw new HttpException(
-  //       `Summoner ${summonerName} not found`,
-  //       HttpStatus.NOT_FOUND,
-  //     );
-  //   }
-  //   if (!allPlayersMatches.length) {
-  //     throw new HttpException(`No matches found`, HttpStatus.NOT_FOUND);
-  //   }
-  //   const playersScores = new Map<string, number[]>();
-  //   for (const playerMatch of allPlayersMatches) {
-  //     const player = playerMatch.summonerName;
-  //     const scores = playersScores.get(player) || [];
-  //     const matchIndex = scores.length;
-  //     scores[matchIndex] = playerMatch.win ? 1 : 0;
-  //     playersScores.set(player, scores);
-  //   }
+    const kdaPosition = this.rankByKda(summoners, summonerName);
+    let leaguePointsPosition: number | undefined;
+    if (!missingRankedValues) {
+      const withoutNoRankedSummoners = summoners.filter((summoner) => {
+        if (summoner.tier && summoner.rank) {
+          return summoner;
+        }
+      });
+      leaguePointsPosition = this.rankByLeaguePoints(
+        withoutNoRankedSummoners,
+        summonerName,
+      );
+    }
+    const winRatePos = this.rankByWins(summoners, summonerName);
+    return {
+      kda: `TOP #${kdaPosition}`,
+      leaguePoints: leaguePointsPosition
+        ? `TOP #${leaguePointsPosition}`
+        : undefined,
+      winRatePos: `TOP #${winRatePos}`,
+    };
+  }
 
-  //   const counts = new Map<string, number>();
-  //   for (const [player, scores] of playersScores) {
-  //     const winsCount = scores.reduce((count, val) => count + val, 0);
-  //     counts.set(player, winsCount);
-  //   }
-  //   const sortedCounts = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  //   const rank = sortedCounts.findIndex(([key]) => key === summonerName);
+  private rankByWins(summoners: Summoner[], summonerName: string): number {
+    interface WinsCount {
+      summonerName: string;
+      wins: number;
+    }
+    const winsCount: WinsCount[] = [];
+    for (const summoner of summoners) {
+      let count = 0;
+      for (const match of summoner.matches) {
+        if (match.win) {
+          count++;
+        }
+      }
+      winsCount.push({ summonerName: summoner.summonerName, wins: count });
+    }
 
-  //   return {
-  //     winRate: `${rank + 1}`,
-  //   };
-  // }
+    winsCount.sort((a, b) => b.wins - a.wins);
+
+    const winsPosition = winsCount.findIndex(
+      (summoner) => summoner.summonerName === summonerName,
+    );
+
+    return winsPosition + 1;
+  }
+
+  private rankByKda(summoners: Summoner[], summonerName: string): number {
+    const summonersWithKda = summoners.map((summoner) => {
+      const [kills, deaths, assists] = summoner.kda.split('/');
+      const kdaRatio = (Number(kills) + Number(assists)) / Number(deaths);
+
+      return {
+        summonerName: summoner.summonerName,
+        kdaRatio,
+      };
+    });
+    const sortedSummonerByKda = summonersWithKda.sort(
+      (a, b) => b.kdaRatio - a.kdaRatio,
+    );
+    const kdaPosition = sortedSummonerByKda.findIndex(
+      (summoner) => summoner.summonerName === summonerName,
+    );
+
+    return kdaPosition + 1;
+  }
+
+  private rankByLeaguePoints(
+    summoners: Summoner[],
+    summonerName: string,
+  ): number {
+    const rankValues = {
+      I: 4,
+      II: 3,
+      III: 2,
+      IV: 1,
+    };
+
+    const tierValues = {
+      CHALLENGER: 9,
+      GRANDMASTER: 8,
+      MASTER: 7,
+      DIAMOND: 6,
+      PLATINUM: 5,
+      GOLD: 4,
+      SILVER: 3,
+      BRONZE: 2,
+      IRON: 1,
+    };
+
+    const sortedSummonerByLeaguePoints = summoners.sort((a, b) => {
+      if (a.tier === b.tier) {
+        if (a.rank === b.rank) {
+          return b.leaguePoints - a.leaguePoints;
+        }
+        return rankValues[a.rank] - rankValues[b.rank];
+      }
+      return tierValues[a.tier] - tierValues[b.tier];
+    });
+
+    const leaguePointsPosition = sortedSummonerByLeaguePoints.findIndex(
+      (summoner) => summoner.summonerName === summonerName,
+    );
+
+    return leaguePointsPosition + 1;
+  }
 }

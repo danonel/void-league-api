@@ -16,6 +16,9 @@ export class Summoner {
   summonerName: string;
 
   @Column({ type: 'varchar' })
+  regionName: string;
+
+  @Column({ type: 'varchar' })
   summonerId: string;
 
   @Column({ type: 'varchar', nullable: true })
