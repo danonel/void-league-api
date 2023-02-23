@@ -126,9 +126,7 @@ export class LeagueApiService {
     const winRatePos = this.rankByWins(summoners, summonerName);
     return {
       kda: `TOP #${kdaPosition}`,
-      leaguePoints: leaguePointsPosition
-        ? `TOP #${leaguePointsPosition}`
-        : undefined,
+      leaguePoints: leaguePointsPosition && `TOP #${leaguePointsPosition}`,
       winRatePos: `TOP #${winRatePos}`,
     };
   }
