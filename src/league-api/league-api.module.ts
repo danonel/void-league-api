@@ -5,12 +5,12 @@ import { LeagueApiService } from './league-api.service';
 import { LeagueApiController } from './league-api.controller';
 import { Serialzier } from './serializer';
 import { HttpService } from './http.service';
-import { Match, Summoner } from './entities';
+import { Match, Summoner, Summary } from './entities';
 import { RepositoryNormalizer } from './repository-normalizer';
 import { AxiosService } from '../http/axios.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Match, Summoner]), HttpModule],
+  imports: [TypeOrmModule.forFeature([Match, Summoner, Summary]), HttpModule],
   controllers: [LeagueApiController],
   providers: [
     LeagueApiService,

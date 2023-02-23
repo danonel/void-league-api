@@ -26,6 +26,7 @@ export class RepositoryNormalizer {
       summoner,
       totalMinionsKilled: currentSummoner.totalMinionsKilled,
       win: currentSummoner.win,
+      visionScore: currentSummoner.visionScore,
     } satisfies NormalizedMatch;
   }
 }

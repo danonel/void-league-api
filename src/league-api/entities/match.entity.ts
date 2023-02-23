@@ -36,6 +36,9 @@ export class Match {
   @Column({ type: 'varchar' })
   kda: string;
 
+  @Column({ type: 'int' })
+  visionScore: number;
+
   @ManyToOne(() => Summoner, (summoner) => summoner.matches)
   summoner: Summoner;
 

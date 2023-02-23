@@ -1,5 +1,7 @@
 import { NormalizedMatch } from '../repository-normalizer';
 import { RiotSummonerLeagueResponse } from '../riot-responses-types/riot-get-league-by-summoner-id-response.type';
+export * from './queue-id-to-queue-name';
+export * from './ranked-values';
 
 type IKda = {
   k: number;
@@ -41,7 +43,9 @@ export const parseRankedStats = (
   }, {} as IRankedStats);
 };
 
-export const removeSummoner = (normalizedMatches: NormalizedMatch[]) => {
+export const removeSummonerToMatches = (
+  normalizedMatches: NormalizedMatch[],
+) => {
   return normalizedMatches.map(({ summoner, ...rest }) => ({
     ...rest,
   }));

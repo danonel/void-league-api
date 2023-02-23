@@ -1,13 +1,25 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from './http.service';
-import { GetPlayerLeaderboardsDTO, GetPlayerRecentMatchesDTO } from './dto';
-import { Match, Summoner } from './entities';
+import {
+  GetPlayerLeaderboardsDTO,
+  GetPlayerRecentMatchesDTO,
+  GetPlayerSummaryDTO,
+} from './dto';
+import { Match, Summoner, Summary } from './entities';
 import { NormalizedMatch, RepositoryNormalizer } from './repository-normalizer';
 import { Serialzier } from './serializer';
-import { parseKda, parseRankedStats, removeSummoner } from './utils';
-import { rankValues, tierValues } from './utils/ranked-values';
+import {
+  parseKda,
+  parseRankedStats,
+  removeSummonerToMatches,
+  getQueueName,
+  rankValues,
+  tierValues,
+} from './utils';
+import { GetOrCreateSummoner } from './types/get-or-create-summoner.type';
+import { matches } from 'class-validator';
 
 @Injectable()
 export class LeagueApiService {
@@ -21,6 +33,8 @@ export class LeagueApiService {
   private readonly matchRepository: Repository<Match>;
   @InjectRepository(Summoner)
   private readonly summonerRepository: Repository<Summoner>;
+  @InjectRepository(Summary)
+  private readonly summaryRepository: Repository<Summary>;
 
   async getPlayerRecentMatches({
     summonerName,
@@ -35,26 +49,12 @@ export class LeagueApiService {
         regionName,
         summonerName,
       });
-
-    const summonerExists = await this.summonerRepository.exist({
-      where: {
-        summonerName,
-      },
-    });
-    if (!summonerExists) {
-      await this.summonerRepository.save({
-        summonerId,
-        summonerName,
-        regionName,
-      });
-    }
-    const summoner = await this.summonerRepository.findOne({
-      where: {
-        summonerId,
-      },
+    const summoner = await this.getSummonerOrCreate({
+      regionName,
+      summonerId,
+      summonerName,
       relations: ['matches'],
     });
-
     const matches = await Promise.all(matchesPromises);
     const normalizedMatches = [] as NormalizedMatch[];
     for (const match of matches) {
@@ -62,20 +62,18 @@ export class LeagueApiService {
         match,
         summoner,
       });
-
       await this.matchRepository.upsert(normalizedMatch, {
         conflictPaths: { matchId: true },
       });
       normalizedMatches.push(normalizedMatch);
     }
-
     const summonerLeagueStats = await this.httpService.getLeagueBySummonerId(
       summonerId,
       regionName,
     );
     const kda = parseKda(normalizedMatches);
     const rankedStats = parseRankedStats(summonerLeagueStats);
-    const matchesWithoutSummoner = removeSummoner(normalizedMatches);
+    const matchesWithoutSummoner = removeSummonerToMatches(normalizedMatches);
 
     await this.summonerRepository.save({
       ...summoner,
@@ -128,6 +126,98 @@ export class LeagueApiService {
       kda: `TOP #${kdaPosition}`,
       leaguePoints: leaguePointsPosition && `TOP #${leaguePointsPosition}`,
       winRatePos: `TOP #${winRatePos}`,
+    };
+  }
+
+  async getPlayerSummary({
+    regionName,
+    summonerName,
+    queueId,
+  }: GetPlayerSummaryDTO) {
+    const { id: summonerId } = await this.httpService.getSummoner({
+      regionName,
+      summonerName,
+    });
+    const summonerStats = await this.httpService.getLeagueBySummonerId(
+      summonerId,
+      regionName,
+    );
+    console.log(summonerStats);
+    const summoner = await this.getSummonerOrCreate({
+      regionName,
+      summonerId,
+      summonerName,
+      relations: ['matches'],
+    });
+    const queueName = getQueueName(queueId);
+    const summonerStatsByQueue = summonerStats.find((stat) => {
+      return stat.queueType === queueName;
+    });
+
+    if (!summonerStatsByQueue) {
+      throw new NotFoundException('Summoner stats not found');
+    }
+    const leaguePoints = summonerStatsByQueue.leaguePoints;
+    const currentRankName = `${summonerStatsByQueue.tier} - ${summonerStatsByQueue.rank}`;
+
+    interface MatchesStats {
+      win: number;
+      totalVisionScore: number;
+      gameDuration: number;
+      totalMinionsKilled: number;
+    }
+
+    const matchesStats = summoner.matches?.reduce<MatchesStats>(
+      (acc, match) => {
+        const win = match.win ? 1 : 0;
+        const totalVisionScore = match.visionScore;
+        const totalMinionsKilled = match.totalMinionsKilled;
+        const gameDuration = match.gameDuration;
+
+        acc.win += win;
+        acc.totalVisionScore += totalVisionScore;
+        acc.totalMinionsKilled += totalMinionsKilled;
+        acc.gameDuration += gameDuration;
+        return acc;
+      },
+      {
+        win: 0,
+        totalVisionScore: 0,
+        gameDuration: 0,
+        totalMinionsKilled: 0,
+      } satisfies MatchesStats,
+    );
+
+    const matchesLength = summoner.matches?.length;
+    const avarageVisionScore = matchesStats?.totalVisionScore / matchesLength;
+    const wins = matchesStats?.win;
+    const csPerMinute =
+      matchesStats?.totalMinionsKilled / matchesStats?.gameDuration;
+
+    const summary = await this.summaryRepository.save({
+      summoner,
+      leaguePoints,
+      currentRankName,
+      queueId,
+      visionScore: summoner.matches && avarageVisionScore,
+      wins: summoner.matches && wins,
+      csPerMinute: summoner.matches && csPerMinute,
+    });
+    await this.summonerRepository.save({
+      ...summoner,
+      summary,
+    });
+    return {
+      queueId,
+      currentRank: {
+        name: currentRankName,
+        currentLeaguePoints: leaguePoints,
+      },
+      matchesStats: summoner.matches && {
+        avarageVisionScore,
+        csPerMinute: Number(csPerMinute.toFixed(4)),
+        wins,
+      },
     };
   }
 
@@ -186,5 +276,33 @@ export class LeagueApiService {
       (summoner) => summoner.summonerName === summonerName,
     );
     return leaguePointsPosition + 1;
+  }
+
+  private async getSummonerOrCreate({
+    summonerName,
+    summonerId,
+    regionName,
+    relations,
+  }: GetOrCreateSummoner) {
+    const summonerExists = await this.summonerRepository.exist({
+      where: {
+        summonerName,
+      },
+    });
+    if (!summonerExists) {
+      await this.summonerRepository.save({
+        summonerId,
+        summonerName,
+        regionName,
+      });
+    }
+    const summoner = await this.summonerRepository.findOne({
+      where: {
+        summonerId,
+      },
+      relations: relations,
+    });
+
+    return summoner;
   }
 }

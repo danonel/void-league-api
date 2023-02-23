@@ -4,8 +4,10 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Match } from './match.entity';
+import { Summary } from './summary.entity';
 
 @Entity()
 export class Summoner {
@@ -35,6 +37,9 @@ export class Summoner {
 
   @OneToMany(() => Match, (match) => match.summoner, { nullable: true })
   matches?: Match[];
+
+  @OneToMany(() => Summary, (summary) => summary.summoner, { nullable: true })
+  summaries?: Summary[];
 
   @CreateDateColumn()
   createdAt: Date;
