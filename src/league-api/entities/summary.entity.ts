@@ -3,12 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  OneToMany,
-  OneToOne,
   ManyToOne,
 } from 'typeorm';
 import { QUEUE_IDS } from '../types/queue-id.type';
-import { Match } from './match.entity';
 import { Summoner } from './summoner.entity';
 
 @Entity()
