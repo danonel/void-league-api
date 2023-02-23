@@ -1,5 +1,6 @@
 import {
   Body,
+  CacheInterceptor,
   Controller,
   Get,
   Query,
@@ -20,12 +21,13 @@ import {
 } from './dto/get-player-summary.dto';
 import { LeagueApiService } from './league-api.service';
 
+@UseInterceptors(CacheInterceptor)
+@UseInterceptors(RiotAuthInterceptor)
+@UsePipes(new ValidationPipe({ transform: true }))
 @Controller('league-api')
 export class LeagueApiController {
   constructor(private readonly leagueApiService: LeagueApiService) {}
 
-  @UseInterceptors(RiotAuthInterceptor)
-  @UsePipes(new ValidationPipe({ transform: true }))
   @Get('/matches')
   getPlayerRecentMatches(
     @Body() { summonerName, regionName }: GetPlayerRecentMatchesBody,
@@ -39,7 +41,6 @@ export class LeagueApiController {
     });
   }
 
-  @UseInterceptors(RiotAuthInterceptor)
   @Get('/summary')
   getPlayerSummary(
     @Body() { regionName, summonerName }: GetPlayerSummaryBody,
@@ -51,8 +52,6 @@ export class LeagueApiController {
       queueId,
     });
   }
-
-  @UseInterceptors(RiotAuthInterceptor)
   @Get('/leaderboards')
   getPlayerLeaderboards(
     @Body() { regionName, summonerName }: GetPlayerLeaderboardsDTO,
